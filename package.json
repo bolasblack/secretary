@@ -1,0 +1,17 @@
+{
+  "engines": {
+    "node": ">= 10.10"
+  },
+  "scripts": {
+    "dev": "shadow-cljs -A:dev watch main main-dev main-test"
+  },
+  "devDependencies": {
+    "deasync": "^0.1.13",
+    "shadow-cljs": "^2.6.22"
+  },
+  "dependencies": {
+    "js-yaml": "^3.12.0",
+    "plist": "^3.0.1",
+    "table": "^5.1.0"
+  }
+}
