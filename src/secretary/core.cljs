@@ -6,6 +6,7 @@
   (:require
    ["path" :as path]
    ["table" :as table]
+   ["chalk" :as chalk]
    [cljs.core.async :as async]
    [adjutant.core :as ac]
    [rxcljs.core :as rc :include-macros true]
@@ -61,36 +62,29 @@
                {:definition definition, :type nil, :service-info nil})))
          user-service-definitions)))
 
-(defn- get-services-list []
+(defn list-services []
   (go-let [services-info (<! (get-services-info))
-           table-header ["Name" "Status" "User" "Definition" "Plist"]
+           table-header ["Name" "Status" "User" "Plist"]
            table-record (map (fn [{:keys [definition] :as info}]
-                               [(:definition-name definition)
-                                (if (:type info) "Enabled" "Disabled")
-                                (if (= :root (:type info)) "root" js/process.env.USER)
-                                (:definition-path definition)
-                                (:path (:service-info info))])
-                             services-info)
-           final-input (.concat
-                        #js []
-                        (into-array [(into-array table-header)])
-                        (into-array (map into-array table-record)))]
-    (table/table
-     final-input
-     #js {:border (table/getBorderCharacters "void")
-          :drawHorizontalLine (constantly false)})))
+                               (let [user (if (= :root (:type info)) "root" js/process.env.USER)]
+                                 [(:definition-name definition)
+                                  (if (:type info)
+                                    (if (= user :root)
+                                      (chalk/yellow "Enabled")
+                                      (chalk/green "Enabled"))
+                                    "Disabled")
+                                  user
+                                  (:path (:service-info info))]))
+                             services-info)]
+    (-> (.concat #js []
+                 (into-array [(into-array table-header)])
+                 (into-array (map into-array table-record)))
+        (table/table #js {:border (table/getBorderCharacters "void")
+                          :drawHorizontalLine (constantly false)})
+        .trimEnd
+        js/console.log)))
 
 #_(async/take!
-   (get-services-list)
-   #(js/console.log %))
-
-(defn -main
-  "Support sub commands:
-
-  * list
-  * enable [--root|--user] [service name]
-  * disable [--root|--user] [service name]
-  * reload [--root|--user] [service name]
-  * restart [--root|--user] [service name]
-  * edit [service name]"
-  [])
+   (list-services)
+   #(when (rc/rxerror? v)
+      (js/console.error @v)))

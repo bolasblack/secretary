@@ -40,7 +40,7 @@
                 :path filepath
                 :data content
                 :plist (plist/build content)
-                :definition-name (path/basename filename)
+                :definition-name (path/basename filename (path/extname filename))
                 :definition-path filepath})))))
    [(read-dir-files folder)]))
 
