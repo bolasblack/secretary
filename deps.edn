@@ -5,7 +5,7 @@
  {adjutant {:git/url "https://github.com/bolasblack/adjutant"
             :sha "4fd6015251143fc09732adfd2d8e48c0269220ab"}
   rxcljs {:git/url "https://github.com/bolasblack/rxcljs"
-          :sha "fa15f4c52804bd386fa0055b9fee8ca28a18ddb8"}}
+          :sha "fb7891d1b1d6b482bc86f1f3b30488f49491664f"}}
 
  :aliases
  {:dev {:extra-deps {cider/cider-nrepl {:mvn/version "0.18.0"}}}
