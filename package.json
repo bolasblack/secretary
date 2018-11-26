@@ -1,13 +1,15 @@
 {
+  "name": "secretary",
   "version": "0.1.0",
   "engines": {
     "node": ">= 10.10"
   },
   "scripts": {
-    "dev": "shadow-cljs -A:dev watch main main-dev main-test"
+    "dev": "shadow-cljs -A:dev watch main main-dev main-test",
+    "build": "mkdir -p out && nexe --resource './lib/**/*' --input ./lib/secretary.cli.js -o out/secretary"
   },
   "devDependencies": {
-    "deasync": "^0.1.13",
+    "nexe": "^2.0.0-rc.34",
     "shadow-cljs": "^2.6.22"
   },
   "dependencies": {

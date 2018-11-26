@@ -17,6 +17,7 @@
 
 (defn -main []
   (-> yargs
+      (.scriptName "secretary")
       (.command "list" "List all defined services"
                 (fn [yargs]
                   (-> yargs
