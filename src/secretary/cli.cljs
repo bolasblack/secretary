@@ -1,9 +1,12 @@
 (ns secretary.cli
   (:require
    ["yargs" :as yargs]
+   [cljs.core.async :as async]
+   [goog.object :as go]
    [secretary.core :as sc]
-   [rxcljs.core :as rc :include-macros true]
-   [cljs.core.async :as async]))
+   [rxcljs.core :as rc :include-macros true]))
+
+(def ^:dynamic *cli-debug* false)
 
 (defn- wrap-channel-errors [f]
   (fn [argv & rest-args]
@@ -11,16 +14,30 @@
       (when (rc/chan? res)
         (async/take! res #(when (rc/rxerror? %)
                             (if-let [exmsg (ex-message (deref %))]
-                              (js/console.error (deref %))
+                              (if *cli-debug*
+                                (js/console.error (deref %))
+                                (js/console.error exmsg))
                               (js/console.error (deref %)))
                             (js/process.exit 1)))))))
 
-(defn -main []
+(defn- prepare-subcommand [yargs]
+  (-> yargs
+      (.version false)
+      .help))
+
+(defn- get-argv []
   (-> yargs
       (.scriptName "secretary")
+      (.option
+       "debug"
+       #js {:alias "d"
+            :type "boolean"
+            :describe "Print error stack"
+            :default false})
       (.command "list" "List all defined services"
                 (fn [yargs]
                   (-> yargs
+                      prepare-subcommand
                       (.option
                        "plist"
                        #js {:alias "p"
@@ -31,6 +48,7 @@
       (.command "enable [service]" "Enable service"
                 (fn [yargs]
                   (-> yargs
+                      prepare-subcommand
                       (.option
                        "alluser"
                        #js {:alias "a"
@@ -46,25 +64,29 @@
                             :default "login"})))
                 (wrap-channel-errors sc/enable-service))
       (.command "disable [service]" "Disable service"
-                identity
+                prepare-subcommand
                 (wrap-channel-errors sc/disable-service))
       (.command "reload [service]" "Regenerate plist file and restart service"
-                identity
+                prepare-subcommand
                 (wrap-channel-errors sc/reload-services))
       (.command "start [service]" "Start service by command `launchctl start [service label]`"
-                identity
+                prepare-subcommand
                 (wrap-channel-errors sc/start-services))
       (.command "stop [service]" "Stop service by command `launchctl start [service label]`"
-                identity
+                prepare-subcommand
                 (wrap-channel-errors sc/stop-services))
       (.command "plist [service]" "Print service plist file path"
-                identity
+                prepare-subcommand
                 (wrap-channel-errors sc/get-plist))
       (.command "edit [service]" "Edit service definition file by EDITOR"
-                identity
+                prepare-subcommand
                 (wrap-channel-errors sc/edit-definition))
       (.demandCommand 1 "You need at least one command before moving on")
-      (.help)
+      .help
       .-argv))
+
+(defn -main []
+  (when (go/get (get-argv) "debug")
+    (set! *cli-debug* true)))
 
 (-main)
