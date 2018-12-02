@@ -4,6 +4,7 @@
    [rxcljs.core :refer [go go-let <! >!]]
    [rxcljs.transformers :refer [<p! <n! <<!]])
   (:require
+   [clojure.string :as str]
    [cljs.core.async :as async]
    [adjutant.core :as ac]
    [rxcljs.operators :as ro]
@@ -18,6 +19,12 @@
 (defn- prefix-home [p]
   (path/join js/process.env.HOME p))
 
+(def run-directly-in-node?
+  (-> js/process.argv
+      first
+      (str/replace #"\.exe$" "")
+      (str/ends-with? "node")))
+
 (def root? (= "root" js/process.env.USER))
 
 (def boot-service-folder
@@ -29,8 +36,8 @@
 (def curr-user-service-folder
   (prefix-home "Library/LaunchAgents"))
 
-(def service-definition-folders
-  (map prefix-home [".secretary"]))
+(def service-definition-folder
+  (prefix-home ".secretary"))
 
 (def default-service-folders
   {:service-folders
@@ -38,7 +45,7 @@
            (if root? [] [curr-user-service-folder]))
 
    :service-definition-folders
-   service-definition-folders})
+   [service-definition-folder]})
 
 (defn read-dir-files [^string folder]
   (let [chan (async/chan)]
@@ -157,11 +164,17 @@
       (throw (ex-info "Service not found" {}))
       service-info)))
 
-(defn writable? [folder]
-  (let [chan (async/chan)]
+(defn access? [path & modes]
+  (let [has-mode? #(some #{%} modes)
+        constants (cond-> #{}
+                    (has-mode? :f) (conj fs/constants.F_OK)
+                    (has-mode? :w) (conj fs/constants.W_OK)
+                    (has-mode? :r) (conj fs/constants.R_OK)
+                    (has-mode? :x) (conj fs/constants.X_OK))
+        chan (async/chan)]
     (fs/access
-     folder
-     fs/constants.W_OK
+     path
+     (apply bit-or constants)
      #(async/put! chan (nil? %1)))
     chan))
 
@@ -186,14 +199,14 @@
 (defn get-plist-folder [& {:keys [phase alluser]}]
   (go (cond
         (= phase "boot")
-        (if (<! (writable? boot-service-folder))
+        (if (<! (access? boot-service-folder :w))
           boot-service-folder
           (-> (str "Can not write file in path " boot-service-folder "\n"
                    "Maybe you should execute this command by sudo")
               (ac/error! {})))
 
         alluser
-        (if (<! (writable? alluser-service-folder))
+        (if (<! (access? alluser-service-folder :w))
           alluser-service-folder
           (-> (str "Can not write file in path " alluser-service-folder "\n"
                    "Maybe you should execute this command by sudo")
@@ -203,7 +216,7 @@
         (throw (ex-info "Can not enable service for root" {}))
 
         :else
-        (if (<! (writable? curr-user-service-folder))
+        (if (<! (access? curr-user-service-folder :w))
           curr-user-service-folder
           (throw (ex-info (str "Can not write file in path " curr-user-service-folder) {}))))))
 

@@ -4,8 +4,10 @@
    [rxcljs.core :refer [go go-let <! >!]]
    [rxcljs.transformers :refer [<p! <n! <<!]])
   (:require
+   ["os" :as os]
    ["fs" :as fs]
    ["path" :as path]
+   ["crypto" :as crypto]
    ["table" :as table]
    ["chalk" :as chalk]
    [cljs.core.async :as async]
@@ -90,6 +92,19 @@
 
 (defn edit-definition
   [{:keys [service] :as argv}]
-  (go-let [service-info (<! (utils/get-service-info! service))
+  (go-let [service-info (<! (utils/get-service-info service))
+           editing-path (if service-info
+                          (:definition-path (:definition service-info))
+                          (path/join
+                           (os/tmpdir)
+                           (str "secretary-" service "-"
+                                (.toString (crypto/randomBytes 5) "hex")
+                                ".yml")))
+           final-path (path/join utils/service-definition-folder (str service ".yml"))
            editor (or js/process.env.EDITOR "vi")]
-    (utils/exec! editor [(:definition-path (:definition service-info))] {:stdio "inherit"})))
+    (utils/exec! editor [editing-path] {:stdio "inherit"})
+    (when (and (not service-info)
+               (<! (utils/access? editing-path)))
+      (utils/exec! "mv" [editing-path final-path])
+      (println "Service definition file created: " final-path)
+      (js/process.exit 0))))

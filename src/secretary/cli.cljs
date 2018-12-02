@@ -4,6 +4,7 @@
    [cljs.core.async :as async]
    [goog.object :as go]
    [secretary.core :as sc]
+   [secretary.utils :as su]
    [rxcljs.core :as rc :include-macros true]))
 
 (def ^:dynamic *cli-debug* false)
@@ -32,8 +33,7 @@
        "debug"
        #js {:alias "d"
             :type "boolean"
-            :describe "Print error stack"
-            :default false})
+            :describe "Print error stack"})
       (.command "list" "List all defined services"
                 (fn [yargs]
                   (-> yargs
@@ -69,16 +69,16 @@
       (.command "reload [service]" "Regenerate plist file and restart service"
                 prepare-subcommand
                 (wrap-channel-errors sc/reload-services))
-      (.command "start [service]" "Start service by command `launchctl start [service label]`"
+      (.command "start [service]" "Delegate to `launchctl start [service label]`"
                 prepare-subcommand
                 (wrap-channel-errors sc/start-services))
-      (.command "stop [service]" "Stop service by command `launchctl start [service label]`"
+      (.command "stop [service]" "Delegate to `launchctl stop [service label]`"
                 prepare-subcommand
                 (wrap-channel-errors sc/stop-services))
       (.command "plist [service]" "Print service plist file path"
                 prepare-subcommand
                 (wrap-channel-errors sc/get-plist))
-      (.command "edit [service]" "Edit service definition file by EDITOR"
+      (.command "edit [service]" "Create or edit service definition file by EDITOR"
                 prepare-subcommand
                 (wrap-channel-errors sc/edit-definition))
       (.demandCommand 1 "You need at least one command before moving on")
@@ -89,4 +89,5 @@
   (when (go/get (get-argv) "debug")
     (set! *cli-debug* true)))
 
-(-main)
+(when-not su/run-directly-in-node?
+  (-main))

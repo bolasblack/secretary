@@ -14,14 +14,13 @@ Commands:
   secretary enable [service]   Enable service
   secretary disable [service]  Disable service
   secretary reload [service]   Regenerate plist file and restart service
-  secretary start [service]    Start service by command `launchctl start
-                               [service label]`
-  secretary stop [service]     Stop service by command `launchctl start [service
-                               label]`
+  secretary start [service]    Delegate to `launchctl start [service label]`
+  secretary stop [service]     Delegate to `launchctl stop [service label]`
   secretary plist [service]    Print service plist file path
-  secretary edit [service]     Edit service definition file by EDITOR
+  secretary edit [service]     Create or edit service definition file by EDITOR
 
 Options:
-  --version  Show version number                                       [boolean]
-  --help     Show help                                                 [boolean]
+  --version    Show version number                                     [boolean]
+  --debug, -d  Print error stack                                       [boolean]
+  --help       Show help                                               [boolean]
 ```
