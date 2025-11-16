@@ -4,6 +4,7 @@ pom.xml
 /classes/
 /out/
 /target/
+/compiled/
 .lein*
 /node_modules
 .env

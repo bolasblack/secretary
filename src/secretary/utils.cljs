@@ -49,10 +49,17 @@
 
 (defn read-dir-files [^string folder]
   (let [chan (async/chan)]
-    (go-let [files (->> (<n! fs -readdir folder #js {:withFileTypes true})
-                        (apply vector)
-                        (filter #(.isFile %))
-                        (map #(.-name %)))]
+    (go-let [exists? (<! (async/go (try
+                                     (<n! fs -access folder)
+                                     true
+                                     (catch :default _ false))))
+             files (if exists?
+                     (->> (<n! fs -readdir folder #js {:withFileTypes true})
+                          (apply vector)
+                          (filter #(.isFile %))
+                          (map #(.-name %))
+                          (filter #(not (str/starts-with? % "."))))  ; 过滤隐藏文件
+                     [])]
       (doseq [file files]
         (>! chan file))
       (async/close! chan))
@@ -86,19 +93,40 @@
      res)
    #(js/console.log (:content %)))
 
+(defn- with-suppressed-stderr [f]
+  (let [original-error js/console.error]
+    (set! js/console.error (fn [& _]))
+    (try (f)
+      (finally (set! js/console.error original-error)))))
+
+(defn- parse-plist [plist-str filepath]
+  (try
+    (with-suppressed-stderr
+      #(-> plist-str plist/parse (js->clj :keywordize-keys true)))
+    (catch :default _
+      (js/console.warn (str "Warning: Failed to parse plist file: " filepath))
+      nil)))
+
 (defn read-service-file [^string filepath]
-  (go-let [plist (.toString (<n! fs -readFile filepath))
-           data (->> (plist/parse plist)
-                     (#(js->clj % :keywordize-keys true)))]
-    {:id (:Label data)
-     :path filepath
-     :data data
-     :plist plist}))
+  (go-let [plist-str (try
+                       (.toString (<n! fs -readFile filepath))
+                       (catch :default e
+                         (js/console.warn (str "Warning: Failed to read file: " filepath " - " (.-message e)))
+                         nil))]
+    (some-> plist-str
+            (parse-plist filepath)
+            (as-> data
+              {:id (:Label data)
+               :path filepath
+               :data data
+               :plist plist-str}))))
 
 (defn read-service-files [^string folder]
-  (ro/map
-   #(read-service-file (path/join folder %))
-   [(read-dir-files folder)]))
+  (->> (async/chan 1 (filter some?))
+       (async/pipe
+         (ro/map
+           #(read-service-file (path/join folder %))
+           [(read-dir-files folder)]))))
 
 #_(async/take!
    (async/into
@@ -232,13 +260,13 @@
     (cond
       (.-error res)
       (throw (.-error res))
-
+      
       (not= 0 (.-status res))
       (do (js/console.error (-> (exec! "launchctl" ["error" (.-status res)])
                                 .-stdout
                                 .toString
                                 .trimEnd))
           (js/process.exit (.-status res)))
-
+      
       :else
       res)))
