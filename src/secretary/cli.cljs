@@ -88,6 +88,3 @@
 (defn -main []
   (when (go/get (get-argv) "debug")
     (set! *cli-debug* true)))
-
-(when-not su/run-directly-in-node?
-  (-main))
