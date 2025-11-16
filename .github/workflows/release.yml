@@ -52,8 +52,8 @@ jobs:
             compiled/secretary-linux-x64-musl
             compiled/secretary-linux-arm64
             compiled/secretary-linux-arm64-musl
-            compiled/secretary-windows-x64
             compiled/secretary-darwin-x64
             compiled/secretary-darwin-arm64
+            compiled/secretary-windows-x64.exe
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
